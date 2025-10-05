@@ -1,0 +1,13 @@
+{
+  "matrix": {
+    "fuego":      { "fuego":0,"agua":-1,"tierra":1,"energia":0,"aire":1,"hielo":1,"oscuridad":0,"veneno":1 },
+    "agua":       { "fuego":1,"agua":0,"tierra":-1,"energia":-1,"aire":0,"hielo":0,"oscuridad":0,"veneno":-1 },
+    "tierra":     { "fuego":-1,"agua":1,"tierra":0,"energia":1,"aire":-1,"hielo":0,"oscuridad":0,"veneno":0 },
+    "energia":    { "fuego":0,"agua":1,"tierra":-1,"energia":0,"aire":0,"hielo":1,"oscuridad":1,"veneno":0 },
+    "aire":       { "fuego":-1,"agua":0,"tierra":1,"energia":0,"aire":0,"hielo":1,"oscuridad":0,"veneno":0 },
+    "hielo":      { "fuego":-1,"agua":0,"tierra":0,"energia":-1,"aire":-1,"hielo":0,"oscuridad":0,"veneno":1 },
+    "oscuridad":  { "fuego":0,"agua":0,"tierra":0,"energia":-1,"aire":0,"hielo":0,"oscuridad":0,"veneno":1 },
+    "veneno":     { "fuego":-1,"agua":1,"tierra":0,"energia":0,"aire":0,"hielo":-1,"oscuridad":-1,"veneno":0 }
+  },
+  "multipliers": { "advantage": 1.25, "disadvantage": 0.75, "neutral": 1.0 }
+}

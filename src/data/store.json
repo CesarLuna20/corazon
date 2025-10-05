@@ -1,0 +1,26 @@
+{
+  "buy": {
+    "common": 200,
+    "rare": 400,
+    "epic": 800,
+    "legendary": 1500
+  },
+  "upgrade": {
+    "common": [150, 300, 500],
+    "rare": [300, 600, 900],
+    "epic": [500, 1000, 1500],
+    "legendary": [800, 1600, 2400]
+  },
+  "items": {
+    "bibix_fire_01": { "price": 400, "rarity": "rare" },
+    "bibix_water_02": { "price": 800, "rarity": "epic" },
+    "bibix_earth_03": { "price": 200, "rarity": "common" },
+    "bibix_air_04": { "price": 400, "rarity": "rare" },
+    "bibix_ice_05": { "price": 800, "rarity": "epic" },
+    "bibix_dark_06": { "price": 1500, "rarity": "legendary" },
+    "bibix_poison_07": { "price": 400, "rarity": "rare" },
+    "bibix_energy_08": { "price": 800, "rarity": "epic" },
+    "bibix_fire_09": { "price": 200, "rarity": "common" },
+    "bibix_earth_10": { "price": 400, "rarity": "rare" }
+  }
+}

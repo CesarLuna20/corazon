@@ -2,29 +2,28 @@
   "expo": {
     "name": "bibix-game",
     "slug": "bibix-game",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "scheme": "bibix-game",
+    "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "statusBar": {
+      "hidden": true
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
-    "ios": {
-      "supportsTablet": true
-    },
+    "plugins": [
+      "expo-dev-client",
+      "expo-font"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "package": "com.bibix.game"
     }
   }
 }
