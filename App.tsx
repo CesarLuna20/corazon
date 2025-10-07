@@ -15,6 +15,10 @@ import EndlessScreen from "./src/ui/EndlessScreen";
 import CollectionScreen from "./src/ui/CollectionScreen";
 import StoreScreen from "./src/ui/StoreScreen";
 import ProfileScreen from "@/ui/ProfileScreen";
+import AdsScreen from "@/ui/AdsScreem";
+
+
+import mobileAds from "react-native-google-mobile-ads";
 
 
 
@@ -27,10 +31,16 @@ export type RootStackParamList = {
   Collection: undefined;
   Store: undefined;
   Profile: undefined;
+  Ads: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+
+  useEffect(() => {
+    mobileAds().initialize();
+  }, []);
+  
 export default function App() {
   useEffect(() => {
     // Android: ocultar barra de navegación (modo inmersivo)
@@ -69,6 +79,8 @@ export default function App() {
             <Stack.Screen name="Collection" component={CollectionScreen} />
             <Stack.Screen name="Store" component={StoreScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+             <Stack.Screen name="Ads" component={AdsScreen} />
+
           </Stack.Navigator>
         </NavigationContainer>
       </GestureHandlerRootView>

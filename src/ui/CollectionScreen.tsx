@@ -65,7 +65,8 @@ function statsForPhase(row: BibixRow, phase: Phase) {
   const hp = Math.round(lv(row.base.hp, row.growth.hp));
   const atk = Math.round(lv(row.base.atk, row.growth.atk));
   const def = Math.round(lv(row.base.def, row.growth.def));
-  const speed = Number(lv(row.base.speed, row.growth.speed).toFixed(2));
+  const speed = Number((Math.round((row.base.speed ?? 0) * (row.growth.speed ?? 0))).toFixed(2));
+
   return { hp, atk, def, speed };
 }
 function damageForPhase(row: BibixRow, phase: Phase, fallbackAtk: number) {

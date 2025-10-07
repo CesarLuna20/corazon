@@ -7,9 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "statusBar": {
-      "hidden": true
-    },
+    "statusBar": { "hidden": true },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,13 +15,25 @@
     },
     "plugins": [
       "expo-dev-client",
-      "expo-font"
+      "expo-font",
+      "expo-asset",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ]
     ],
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "com.bibix.game"
+    },
+    "ios": {
+      "bundleIdentifier": "com.bibix.game",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "Usamos tu identificador para mostrar anuncios más relevantes y recompensas."
+      }
     }
   }
 }

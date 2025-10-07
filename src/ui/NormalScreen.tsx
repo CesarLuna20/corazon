@@ -1,4 +1,3 @@
-
 // src/ui/NormalScreen.tsx
 import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { View, Dimensions } from "react-native";
@@ -14,8 +13,6 @@ import {
   Image as SkImage,
   useImage,
   Circle,
-  Path,
-  Skia,
   Text as SkText,
   useFont,
 } from "@shopify/react-native-skia";
@@ -35,6 +32,11 @@ import { useProfileStore } from "../state/useProfileStore";
 import { PLAYER_SKINS, OPPONENTS } from "../data/avatars";
 
 import Sprite from "./components/Sprite";
+import { SPELL_SPRITES } from "../data/spellsSprites";
+
+// 🎵 Audio (corregido)
+import { initAudio, changeMusic, stopMusic, setMusicFromStore } from "../audio/audio";
+import { useAudioStore } from "../state/useAudioStore";
 
 // ====== Layout ======
 const { width, height } = Dimensions.get("window");
@@ -60,8 +62,8 @@ const BAR_W = Math.min(280, (width - 140) / 2);
 const LABEL_DY = -6;
 
 // 🌟 Offsets de barras centradas
-const PLAYER_BAR_X = width * 0.5 - BAR_W - 12; // a la izquierda del centro
-const ENEMY_BAR_X  = width * 0.5 + 12;         // a la derecha del centro
+const PLAYER_BAR_X = width * 0.5 - BAR_W - 12;
+const ENEMY_BAR_X = width * 0.5 + 12;
 
 // Slots
 const LEFT_COL_W = 92;
@@ -118,20 +120,15 @@ const getOwnedPhase = (slotIndex: number): 0 | 1 | 2 | 3 | 4 => {
   const p = useProfileStore.getState().phasesByBibix?.[id] ?? 1;
   return p === 1 || p === 2 || p === 3 || p === 4 ? (p as 1 | 2 | 3 | 4) : 1;
 };
-const capForPhase = (phase: 0 | 1 | 2 | 3 | 4) => (phase ? TH[phase - 1] : 0);
-
-// ====== Mapeo de sprite de proyectil (reusamos gemas) ======
-const projectileGemIndexByElement: Record<"fuego" | "agua" | "tierra" | "energia", number> = {
-  fuego: 4,
-  agua: 0,
-  tierra: 5,
-  energia: 2,
-};
 
 // === Helper: texto centrado dentro de una barra ===
 const HpInBar: React.FC<{
-  x: number; y: number; w: number; h: number;
-  text: string; fontRef: any;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text: string;
+  fontRef: any;
 }> = ({ x, y, w, h, text, fontRef }) => {
   if (!fontRef) return null as any;
   const m = fontRef.measureText(text);
@@ -148,6 +145,25 @@ const HpInBar: React.FC<{
 };
 
 export default function NormalScreen() {
+  // ====== Música de escena ======
+  useEffect(() => {
+    (async () => {
+      await initAudio();
+      await changeMusic("battle", { crossfadeMs: 600, loop: true }); // 👈 corregido
+      await setMusicFromStore();
+    })();
+
+    return () => {
+      // al salir de batalla, paramos y descargamos (Home la volverá a encender)
+      stopMusic(true, 300);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsub = useAudioStore.subscribe(() => setMusicFromStore());
+    return unsub;
+  }, []);
+
   const navigation = useNavigation<any>();
 
   // ====== Background ======
@@ -157,7 +173,7 @@ export default function NormalScreen() {
   const font = useFont(require("../../assets/fonts/Montserrat-Bold.ttf"), 16);
   const fontSmall = useFont(require("../../assets/fonts/Montserrat-Regular.ttf"), 13);
 
-  // ====== Tiles (también para proyectiles) ======
+  // ====== Tiles (para tablero) ======
   const img0 = useImage(require("../../assets/tiles/gem0.png"));
   const img1 = useImage(require("../../assets/tiles/gem1.png"));
   const img2 = useImage(require("../../assets/tiles/gem2.png"));
@@ -166,6 +182,22 @@ export default function NormalScreen() {
   const img5 = useImage(require("../../assets/tiles/gem5.png"));
   const TILE_IMGS = [img0, img1, img2, img3, img4, img5];
   const readyTiles = TILE_IMGS.every(Boolean);
+
+  // ====== Preload de sprites de los 4 slots (jugador) ======
+  const selectedIds = useProfileStore.getState().getSelectedArray?.() ?? [];
+  const preSpell0 = useImage(selectedIds[0] && SPELL_SPRITES[selectedIds[0]] ? SPELL_SPRITES[selectedIds[0]].source : null);
+  const preSpell1 = useImage(selectedIds[1] && SPELL_SPRITES[selectedIds[1]] ? SPELL_SPRITES[selectedIds[1]].source : null);
+  const preSpell2 = useImage(selectedIds[2] && SPELL_SPRITES[selectedIds[2]] ? SPELL_SPRITES[selectedIds[2]].source : null);
+  const preSpell3 = useImage(selectedIds[3] && SPELL_SPRITES[selectedIds[3]] ? SPELL_SPRITES[selectedIds[3]].source : null);
+  void preSpell0; void preSpell1; void preSpell2; void preSpell3;
+
+  // ====== Enemy (IA) – loadout y preload ======
+  const enemyIds = useBattleStore((s) => s.enemyLoadout) ?? [];
+  const preE0 = useImage(enemyIds[0] && SPELL_SPRITES[enemyIds[0]] ? SPELL_SPRITES[enemyIds[0]].source : null);
+  const preE1 = useImage(enemyIds[1] && SPELL_SPRITES[enemyIds[1]] ? SPELL_SPRITES[enemyIds[1]].source : null);
+  const preE2 = useImage(enemyIds[2] && SPELL_SPRITES[enemyIds[2]] ? SPELL_SPRITES[enemyIds[2]].source : null);
+  const preE3 = useImage(enemyIds[3] && SPELL_SPRITES[enemyIds[3]] ? SPELL_SPRITES[enemyIds[3]].source : null);
+  void preE0; void preE1; void preE2; void preE3;
 
   // ====== Board state ======
   const [board, setBoard] = useState<Board>(() => createBoard(BW, BH, COLORS));
@@ -177,41 +209,40 @@ export default function NormalScreen() {
   const playerElo = useProfileStore((s) => s.playerElo);
   const getComputedMaxHp = useProfileStore((s) => s.getComputedMaxHp);
 
-  // Nombres/skins (tú = enemy en esta escena)
+  // Nombres/skins
   const playerNameFromStore = useProfileStore((s: any) => s.playerName);
   const playerSkinIdFromStore = useProfileStore((s: any) => s.playerSkinId);
 
-  // "player" en el store = RIVAL (enemy real). Se randomiza SOLO al entrar en la pantalla.
-  const opponentSkinRef = useRef(
-    OPPONENTS[Math.floor(Math.random() * OPPONENTS.length)] ?? OPPONENTS[0]
-  );
+  // "player" en el store = RIVAL aleatorio (izquierda)
+  const opponentSkinRef = useRef(OPPONENTS[Math.floor(Math.random() * OPPONENTS.length)] ?? OPPONENTS[0]);
   const opponentSkin = opponentSkinRef.current;
 
-  // "enemy" en el store = Tú. No random.
+  // "enemy" en el store = Tú (derecha)
   const mySkin = useMemo(() => {
     const id = playerSkinIdFromStore ?? PLAYER_SKINS[0]?.id;
     return PLAYER_SKINS.find((a) => a.id === id) ?? PLAYER_SKINS[0];
   }, [playerSkinIdFromStore]);
 
-  // Sprites (si en avatars.ts guardas directamente el require dentro de sprite/source)
+  // Sprites básicos
   const defaultSprite = require("../../assets/personajes/itsuka.png");
-  const enemySpriteSource = (opponentSkin as any)?.sprite?.source ?? (opponentSkin as any)?.sprite ?? defaultSprite; // enemigo real (lado izquierdo = player)
-  const mySpriteSource    = (mySkin as any)?.sprite?.source ?? (mySkin as any)?.sprite ?? defaultSprite;             // tú (lado derecho = enemy)
+  const enemySpriteSource =
+    (opponentSkin as any)?.sprite?.source ?? (opponentSkin as any)?.sprite ?? defaultSprite;
   const enemyRows = (opponentSkin as any)?.sprite?.rows ?? 2;
   const enemyCols = (opponentSkin as any)?.sprite?.cols ?? 3;
-  const enemyFps  = (opponentSkin as any)?.sprite?.fps  ?? 1.8;
-  const enemyW    = (opponentSkin as any)?.sprite?.renderW ?? 80;
-  const enemyH    = (opponentSkin as any)?.sprite?.renderH ?? 100;
+  const enemyFps = (opponentSkin as any)?.sprite?.fps ?? 1.8;
+  const enemyW = (opponentSkin as any)?.sprite?.renderW ?? 80;
+  const enemyH = (opponentSkin as any)?.sprite?.renderH ?? 100;
 
+  const mySpriteSource = (mySkin as any)?.sprite?.source ?? (mySkin as any)?.sprite ?? defaultSprite;
   const myRows = (mySkin as any)?.sprite?.rows ?? 2;
   const myCols = (mySkin as any)?.sprite?.cols ?? 3;
-  const myFps  = (mySkin as any)?.sprite?.fps  ?? 1.8;
-  const myW    = (mySkin as any)?.sprite?.renderW ?? 80;
-  const myH    = (mySkin as any)?.sprite?.renderH ?? 100;
+  const myFps = (mySkin as any)?.sprite?.fps ?? 1.8;
+  const myW = (mySkin as any)?.sprite?.renderW ?? 80;
+  const myH = (mySkin as any)?.sprite?.renderH ?? 100;
 
-  // Nombres en HUD (AJUSTE: el aleatorio va a la DERECHA; tu nombre queda a la IZQUIERDA)
-  const leftName  = playerNameFromStore || mySkin?.name || "Tú";     // izquierda (tú)
-  const rightName = opponentSkin?.name || "Rival";                    // derecha (enemigo real aleatorio)
+  // Nombres en HUD
+  const leftName = playerNameFromStore || mySkin?.name || "Tú";
+  const rightName = opponentSkin?.name || "Rival";
 
   // ====== Battle store ======
   const paused = useBattleStore((s) => s.paused);
@@ -223,15 +254,21 @@ export default function NormalScreen() {
 
   // ====== Inicializa HP máximos con perfil/ELO ======
   const applyMaxHpFromProfile = useCallback(() => {
-    const pMax = getComputedMaxHp(); // player (rival)
+    const pMax = getComputedMaxHp(); // player (rival/izq)
     const br = eloBracket(playerElo ?? 1000);
-    const enemyMax = Math.round(1000 * br.hpMul); // enemy (tú)
+    const enemyMax = Math.round(1000 * br.hpMul); // enemy (tú/der)
     useBattleStore.getState().setMaxHp(pMax, enemyMax);
   }, [getComputedMaxHp, playerElo]);
 
   useEffect(() => {
     applyMaxHpFromProfile();
   }, [applyMaxHpFromProfile]);
+
+  useEffect(() => {
+    const b = useBattleStore.getState();
+    b.start();
+    return () => b.stop();
+  }, []);
 
   // ====== Efectos de vida del loop ======
   useEffect(() => {
@@ -252,19 +289,23 @@ export default function NormalScreen() {
     return () => unsub();
   }, []);
 
-  // impacto (líneas X) y shot origins según layout
+  // impacto (líneas X) + orígenes y ALTURA fija (pista azul)
   useEffect(() => {
-    const playerLineX = boardLeft + 12;
-    const enemyLineX = boardLeft + boardSize - 12;
+    const playerLineX = boardLeft - 170;
+    const enemyLineX = boardLeft + boardSize + 185;
     useBattleStore.getState().setImpactLines(playerLineX, enemyLineX);
 
-    // Shot point: ligeramente fuera del tablero
-    const playerShotX = boardLeft - 22;
-    const enemyShotX = boardLeft + boardSize + 22;
+    // Orígenes: ligeramente fuera del tablero
+    const playerShotX = boardLeft - 150; // punto rojo
+    const enemyShotX = boardLeft + boardSize + 185;
     useBattleStore.getState().setShotOrigins(playerShotX, enemyShotX);
+
+    // Altura única de recorrido (línea recta sobre el board)
+    const trackY = boardTop - 40;
+    useBattleStore.getState().setShotHeights(trackY, trackY);
   }, []);
 
-  // ====== Tweens ======
+  // ====== Tweens tablero ======
   const valuesRef = useRef<V[]>(
     Array.from({ length: BW * BH }, (_, i) => {
       const x = i % BW;
@@ -467,7 +508,6 @@ export default function NormalScreen() {
     applyMaxHpFromProfile();
     resetBoardJS();
     useBattleStore.getState().resetMatch();
-    // No re-randomizamos el avatar del enemigo real aquí.
   };
   const onExit = () => {
     onRestart();
@@ -566,18 +606,8 @@ export default function NormalScreen() {
             const GAPY = 12;
 
             const rContinue = { x: MENU_X + 16, y: MENU_Y + 64, w: MENU_W - 32, h: BTN_H };
-            const rRestart = {
-              x: MENU_X + 16,
-              y: rContinue.y + BTN_H + GAPY,
-              w: MENU_W - 32,
-              h: BTN_H,
-            };
-            const rExit = {
-              x: MENU_X + 16,
-              y: rRestart.y + BTN_H + GAPY,
-              w: MENU_W - 32,
-              h: BTN_H,
-            };
+            const rRestart = { x: MENU_X + 16, y: rContinue.y + BTN_H + GAPY, w: MENU_W - 32, h: BTN_H };
+            const rExit = { x: MENU_X + 16, y: rRestart.y + BTN_H + GAPY, w: MENU_W - 32, h: BTN_H };
 
             const hit = (r: { x: number; y: number; w: number; h: number }) =>
               e.x >= r.x - HIT_PAD &&
@@ -624,8 +654,8 @@ export default function NormalScreen() {
   const gestures = useMemo(() => Gesture.Exclusive(tap, pan), [tap, pan]);
 
   // HP del store (0..1)
-  const pHP = clamp01(useBattleStore.getState().playerHP); // player = rival
-  const eHP = clamp01(useBattleStore.getState().enemyHP);  // enemy = tú
+  const pHP = clamp01(useBattleStore.getState().playerHP); // player = rival (izq)
+  const eHP = clamp01(useBattleStore.getState().enemyHP); // enemy = tú (der)
 
   // Números visibles
   const pMax = useBattleStore.getState().playerHPMax ?? 1000;
@@ -637,17 +667,14 @@ export default function NormalScreen() {
 
   const br = eloBracket(playerElo ?? 1000);
 
+  // ===== Helpers de fase del ENEMIGO (derecha)
+  const getEnemyPhase = (slotIndex: number): 0 | 1 | 2 | 3 | 4 => {
+    const id = enemyIds[slotIndex];
+    return id ? 4 : 0;
+    // si más adelante manejas fases reales del enemigo, cámbialo aquí
+  };
+
   if (!readyTiles) return <View style={{ flex: 1, backgroundColor: "#0B0E14" }} />;
-
-  // Posiciones para sprites (en base al tablero) — NO mover
-  const playerSpriteX = Math.max(8, boardLeft - PLAYER_SPRITE_W * 0.55);
-  const playerSpriteY = boardTop + boardSize - PLAYER_SPRITE_H - 12;
-
-  const enemySpriteX = Math.min(
-    width - ENEMY_SPRITE_W - 8,
-    boardLeft + boardSize - ENEMY_SPRITE_W * 0.45
-  );
-  const enemySpriteY = boardTop + 12;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0B0E14" }}>
@@ -671,22 +698,9 @@ export default function NormalScreen() {
               <RoundedRect x={PADDING_X} y={TOP_Y - 2} width={86} height={20} r={8} color="#1C2A44" />
               <SkText text={`Nv ${level ?? 1}`} x={PADDING_X + 8} y={TOP_Y + 13} font={fontSmall ?? font} color="#E6F3FF" />
 
-              {/* Nombres (HP va dentro de la barra). 
-                  IZQUIERDA: tu nombre. DERECHA: nombre aleatorio del enemigo real */}
-              <SkText
-                text={leftName}
-                x={PLAYER_BAR_X + 190}
-                y={TOP_Y + LABEL_DY + 16}
-                font={font}
-                color="#E6F3FF"
-              />
-              <SkText
-                text={rightName}
-                x={ENEMY_BAR_X + BAR_W - 245}
-                y={TOP_Y + LABEL_DY + 16}
-                font={font}
-                color="#E6F3FF"
-              />
+              {/* Nombres */}
+              <SkText text={leftName} x={PLAYER_BAR_X + 190} y={TOP_Y + LABEL_DY + 16} font={font} color="#E6F3FF" />
+              <SkText text={rightName} x={ENEMY_BAR_X + BAR_W - 245} y={TOP_Y + LABEL_DY + 16} font={font} color="#E6F3FF" />
             </>
           )}
 
@@ -707,12 +721,12 @@ export default function NormalScreen() {
           />
           <HpInBar x={ENEMY_BAR_X + 15} y={TOP_Y + 20} w={BAR_W} h={BAR_H} text={`${eCur}/${eMax}`} fontRef={font} />
 
-          {/* Botón de pausa (centro arriba) */}
+          {/* Botón de pausa */}
           <RoundedRect x={pauseBtn.x} y={pauseBtn.y} width={pauseBtn.w} height={pauseBtn.h} r={8} color={paused ? "#305A96" : "#1C2A44"} />
           <RoundedRect x={pauseBtn.x + 12} y={pauseBtn.y + 10} width={6} height={pauseBtn.h - 20} r={3} color="#E6F3FF" />
           <RoundedRect x={pauseBtn.x + pauseBtn.w - 18} y={pauseBtn.y + 10} width={6} height={pauseBtn.h - 20} r={3} color="#E6F3FF" />
 
-          {/* ===== Sprites del jugador y rival (NO mover ni cambiar tamaños ni espejos) ===== */}
+          {/* ===== Sprites del jugador y rival ===== */}
           {/* Rival real (lado izquierdo, "player" en store) */}
           <Sprite
             source={enemySpriteSource}
@@ -725,13 +739,19 @@ export default function NormalScreen() {
             fps={enemyFps}
             loop
           />
-          {/* Tú (enemy en escena, lado derecho, espejado) */}
+          {/* Tú (lado derecho, espejado) */}
           <Group
-            transform={[
-              { translateX: Math.min(width - ENEMY_SPRITE_W - 8, boardLeft + boardSize - 0.45 * ENEMY_SPRITE_W) + ENEMY_SPRITE_W },
-              { translateY: boardTop + 12 },
-              { scaleX: -1 },
-            ] as any}
+            transform={
+              [
+                {
+                  translateX:
+                    Math.min(width - ENEMY_SPRITE_W - 8, boardLeft + boardSize - 0.45 * ENEMY_SPRITE_W) +
+                    ENEMY_SPRITE_W,
+                },
+                { translateY: boardTop + 12 },
+                { scaleX: -1 },
+              ] as any
+            }
           >
             <Sprite
               source={mySpriteSource}
@@ -770,59 +790,60 @@ export default function NormalScreen() {
             })}
           </Group>
 
-          {/* Proyectiles */}
+          {/* ===== Proyectiles (sprite) ===== */}
           <Group>
             {(Array.isArray(useBattleStore.getState().projectiles)
               ? useBattleStore.getState().projectiles
               : []
             ).map((p) => {
-              if (
-                !p || !p.pos ||
-                !Number.isFinite(p.pos.x) || !Number.isFinite(p.pos.y) ||
-                !Number.isFinite(p.radius) || !p.targetPos
-              ) return null;
+              if (!p || !p.pos || !Number.isFinite(p.pos.x) || !Number.isFinite(p.pos.y)) return null;
 
-              const trail = Skia.Path.Make();
-              const back = p.owner === "player" ? -22 : 22;
-              trail.moveTo(p.pos.x + back, p.pos.y);
-              trail.lineTo(p.pos.x, p.pos.y);
-
-              const el = (p as any).element as "fuego" | "agua" | "tierra" | "energia" | undefined;
-              const gemIdx = el ? projectileGemIndexByElement[el] : 4;
-              const img = TILE_IMGS[gemIdx] ?? null;
-
+              // orientar el sprite hacia el target
               const dx = (p.targetPos?.x ?? p.pos.x) - p.pos.x;
               const dy = (p.targetPos?.y ?? p.pos.y) - p.pos.y;
               const ang = Math.atan2(dy, dx);
 
-              const size = Math.max(20, p.radius * 2);
+               const rot = ang + (p.owner === "enemy" ? Math.PI : 0);
+                 const flipX = p.owner === "enemy" ? -1 : 1;
+
+              // tamaño del sprite
+              const fw = p.sprite?.meta.frameW ?? 64;
+              const fh = p.sprite?.meta.frameH ?? 64;
+              const size = Math.max(28, Math.round(Math.max(fw, fh) * 0.9));
+
+              if (!p.sprite) return null; // no sprite -> no dibujar nada
 
               return (
-                <Group key={p.id}>
-                  <Path path={trail} strokeWidth={3} style="stroke" color="rgba(255,255,255,0.35)" />
-                  {img ? (
-                    <Group
-                      transform={
-                        [
-                          { translateX: p.pos.x },
-                          { translateY: p.pos.y },
-                          { rotate: ang },
-                          { translateX: -size * 0.5 },
-                          { translateY: -size * 0.5 },
-                        ] as any
-                      }
-                    >
-                      <SkImage x={0} y={0} width={size} height={size} image={img} fit="cover" />
-                    </Group>
-                  ) : (
-                    <Circle cx={p.pos.x} cy={p.pos.y} r={p.radius} color={p.owner === "player" ? "#65E0BE" : "#FF7A7A"} />
-                  )}
+                <Group
+                  key={p.id}
+                  transform={
+                    [
+                      { translateX: p.pos.x },
+                      { translateY: p.pos.y },
+                      { rotate: rot },
+                      { scaleX: flipX },
+                      { translateX: -size * 0.5 },
+                      { translateY: -size * 0.5 },
+                    ] as any
+                  }
+                >
+                  <Sprite
+                    source={p.sprite.source}
+                    rows={p.sprite.meta.rows ?? 1}
+                    cols={p.sprite.meta.cols ?? 1}
+                    x={0}
+                    y={0}
+                    width={size}
+                    height={size}
+                    fps={p.sprite.meta.fps ?? 12}
+                    loop
+                  />
                 </Group>
               );
             })}
           </Group>
 
-          {/* Slots izquierdos + etiquetas (con Lv y fases) */}
+          {/* ===== Slots izquierdos (jugador) ===== */}
           <Group transform={[{ translateX: PADDING_X }, { translateY: boardTop }]}>
             {Array.from({ length: 4 }).map((_, i) => {
               const usableH = boardSize - SLOT_MARGIN_Y * 2;
@@ -832,18 +853,40 @@ export default function NormalScreen() {
 
               const energy = useBattleStore.getState().energy[i] ?? 0;
               const phase = getOwnedPhase(i);
-              const cap = capForPhase(phase);
               const lvlByEnergy = levelFromEnergy(energy);
               const lvlAvail = Math.min(lvlByEnergy, phase) as 0 | 1 | 2 | 3 | 4;
+              const pct = phase ? Math.min(1, energy / TH[phase - 1]) : 0;
 
-              const pct = cap > 0 ? Math.min(1, energy / cap) : 0;
-              const roman = ["I", "II", "III", "IV"];
+              const sel = useProfileStore.getState().getSelectedArray?.() ?? [];
+              const id = sel[i] as string | undefined;
+              const asset = id ? SPELL_SPRITES[id] : null;
 
               return (
-                <Group key={i} transform={[{ translateX: 0 }, { translateY: cy }]}>
+                <Group key={`player-slot-${i}`} transform={[{ translateX: 0 }, { translateY: cy }]}>
+                  {/* Base slot */}
                   <Circle cx={cx} cy={SLOT_R} r={SLOT_R + 5} color="#0A0E17" />
                   <Circle cx={cx} cy={SLOT_R} r={SLOT_R} color="#1C2433" />
                   <Circle cx={cx} cy={SLOT_R} r={SLOT_R * pct} color={pct >= 1 ? "#65E08E" : "#324257"} />
+
+                  {/* Sprite preview */}
+                  {asset && (
+                    <Group transform={[{ translateX: cx - 20 }, { translateY: SLOT_R - 20 }] as any}>
+                      <Sprite
+                        source={asset.source}
+                        rows={asset.meta.rows}
+                        cols={asset.meta.cols}
+                        x={0}
+                        y={0}
+                        width={40}
+                        height={40}
+                        fps={asset.meta.fps}
+                        loop={false}
+                        freezeAtFrame={0}
+                      />
+                    </Group>
+                  )}
+
+                  {/* Nivel disponible */}
                   {fontSmall && (
                     <SkText
                       text={lvlAvail ? `Lv ${lvlAvail}` : `Lv 0`}
@@ -853,6 +896,7 @@ export default function NormalScreen() {
                       color={lvlAvail ? "#E6F3FF" : "#6B7B95"}
                     />
                   )}
+                  {/* Etiqueta */}
                   {fontSmall && (
                     <SkText
                       text={SLOT_LABELS[i]}
@@ -862,23 +906,85 @@ export default function NormalScreen() {
                       color="#9FB3D1"
                     />
                   )}
-                  {fontSmall && (
-                    <Group transform={[{ translateY: 30 }]}>
-                      {roman.map((r, idx) => {
-                        const L = (idx + 1) as 1 | 2 | 3 | 4;
-                        const locked = phase < L;
-                        const reached = energy >= TH[idx] && !locked;
-                        const col = locked ? "#3A475E" : reached ? "#65E08E" : "#9FB3D1";
-                        const w = fontSmall.measureText(r).width ?? 0;
-                        const x = cx - 26 + idx * 17 - w / 2;
-                        return <SkText key={r} text={r} x={x} y={SLOT_R + 8} font={fontSmall} color={col} />;
-                      })}
-                    </Group>
-                  )}
                 </Group>
               );
             })}
           </Group>
+
+          {/* ===== Slots derechos (enemigo) ===== */}
+          {(() => {
+            const RIGHT_PANEL_X = width - PADDING_X - LEFT_COL_W;
+            return (
+              <Group transform={[{ translateX: RIGHT_PANEL_X }, { translateY: boardTop }]}>
+                {Array.from({ length: 4 }).map((_, i) => {
+                  const usableH = boardSize - SLOT_MARGIN_Y * 2;
+                  const gap = usableH / 5;
+                  const cx = LEFT_COL_W / 2;
+                  const cy = SLOT_MARGIN_Y + i * gap;
+
+                  const energy = useBattleStore.getState().enemyEnergy?.[i] ?? 0;
+                  const phase = getEnemyPhase(i);
+                  const lvlByEnergy = levelFromEnergy(energy);
+                  const lvlAvail = Math.min(lvlByEnergy, phase) as 0 | 1 | 2 | 3 | 4;
+                  const pct = phase ? Math.min(1, energy / TH[phase - 1]) : 0;
+
+                  const id = enemyIds[i];
+                  const asset = id ? SPELL_SPRITES[id] : null;
+
+                  return (
+                    <Group key={`enemy-slot-${i}`} transform={[{ translateX: 0 }, { translateY: cy }]}>
+                      {/* Fondo del slot */}
+                      <Circle cx={cx} cy={SLOT_R} r={SLOT_R + 5} color="#0A0E17" />
+                      <Circle cx={cx} cy={SLOT_R} r={SLOT_R} color="#2A2331" />
+
+                      {/* Carga de energía (roja para enemigo) */}
+                      <Circle cx={cx} cy={SLOT_R} r={SLOT_R * pct} color={pct >= 1 ? "#FF7A7A" : "#4A2E39"} />
+
+                      {/* Sprite preview del hechizo del slot */}
+                      {asset && (
+                        <Group transform={[{ translateX: cx - 20 }, { translateY: SLOT_R - 20 }] as any}>
+                          <Sprite
+                            source={asset.source}
+                            rows={asset.meta.rows}
+                            cols={asset.meta.cols}
+                            x={0}
+                            y={0}
+                            width={40}
+                            height={40}
+                            fps={asset.meta.fps}
+                            loop={false}
+                            freezeAtFrame={0}
+                          />
+                        </Group>
+                      )}
+
+                      {/* Nivel disponible */}
+                      {fontSmall && (
+                        <SkText
+                          text={lvlAvail ? `Lv ${lvlAvail}` : `Lv 0`}
+                          x={cx - (fontSmall.measureText(lvlAvail ? `Lv ${lvlAvail}` : "Lv 0").width ?? 0) / 2}
+                          y={SLOT_R + 5}
+                          font={fontSmall}
+                          color={lvlAvail ? "#FFE6E6" : "#8A6B72"}
+                        />
+                      )}
+
+                      {/* Etiqueta (mismas que a la izquierda) */}
+                      {fontSmall && (
+                        <SkText
+                          text={SLOT_LABELS[i]}
+                          x={cx - (fontSmall.measureText(SLOT_LABELS[i]).width ?? 0) / 2}
+                          y={SLOT_R + 24}
+                          font={fontSmall}
+                          color="#D8A1A1"
+                        />
+                      )}
+                    </Group>
+                  );
+                })}
+              </Group>
+            );
+          })()}
 
           {/* ======= Menú de pausa ======= */}
           {paused && (
@@ -902,9 +1008,18 @@ export default function NormalScreen() {
                     {fontSmall && <SkText text="Continuar" x={X + 28} y={Y + 78} font={fontSmall} color="#E6F3FF" />}
 
                     <RoundedRect x={X + 16} y={Y + 48 + BTN_H + GAPY} width={MENU_W - 32} height={BTN_H} r={12} color="#2A3E2E" />
-                    {fontSmall && <SkText text="Reiniciar" x={X + 28} y={Y + 78 + BTN_H + GAPY} font={fontSmall} color="#E6F3FF" />}
+                    {fontSmall && (
+                      <SkText text="Reiniciar" x={X + 28} y={Y + 78 + BTN_H + GAPY} font={fontSmall} color="#E6F3FF" />
+                    )}
 
-                    <RoundedRect x={X + 16} y={Y + 48 + (BTN_H + GAPY) * 2} width={MENU_W - 32} height={BTN_H} r={12} color="#5A2A2A" />
+                    <RoundedRect
+                      x={X + 16}
+                      y={Y + 48 + (BTN_H + GAPY) * 2}
+                      width={MENU_W - 32}
+                      height={BTN_H}
+                      r={12}
+                      color="#5A2A2A"
+                    />
                     {fontSmall && <SkText text="Salir" x={X + 28} y={Y + 78 + (BTN_H + GAPY) * 2} font={fontSmall} color="#E6F3FF" />}
                   </Group>
                 );

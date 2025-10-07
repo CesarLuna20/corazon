@@ -6,4 +6,5 @@ export type RootStackParamList = {
   Endless: undefined;
   Story: undefined;
   Profile: undefined;
+  Ads: undefined;
 };

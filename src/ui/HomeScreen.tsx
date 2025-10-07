@@ -1,5 +1,5 @@
 // src/ui/HomeScreen.tsx
-import React from "react";
+import React, {useEffect} from "react";
 import { View, Text, TouchableOpacity, Dimensions, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,6 +7,9 @@ import type { RootStackParamList } from "../navigation/types";
 import { useWalletStore } from "../state/useWalletStore";
 import { useProfileStore } from "../state/useProfileStore";
 import NamePromptModal from "../ui/NamePromptModal."; // 👈 IMPORTANTE
+import { useFocusEffect } from "@react-navigation/native";
+import { initAudio, playMusic, setMusicFromStore } from "../audio/audio";
+import { useAudioStore } from "../state/useAudioStore";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Home">;
 
@@ -33,7 +36,22 @@ export default function HomeScreen() {
     }
   }, [addCoins]);
 
-  
+  // si quieres reflejar cambios de volumen/mute en tiempo real:
+  useEffect(() => {
+    (async () => {
+      await initAudio();
+      await playMusic("theme", { loop: true, respectExisting: true }); // 👈 clave
+      await setMusicFromStore(); // refleja volumen/mute persistidos
+    })();
+  }, []);
+
+  useEffect(() => {
+    const unsub = useAudioStore.subscribe(() => {
+      setMusicFromStore();
+    });
+    return unsub;
+  }, []);
+ 
   const TileBtn = ({
     label,
     sub,
@@ -154,7 +172,7 @@ export default function HomeScreen() {
               letterSpacing: 1,
             }}
           >
-            BIBIX ARENA
+            DEMON MATCH
           </Text>
           <Text
             style={{
@@ -166,7 +184,7 @@ export default function HomeScreen() {
               letterSpacing: 1,
             }}
           >
-            BIBIX ARENA
+            DEMON MATCH
           </Text>
           <Text
             style={{
@@ -179,7 +197,7 @@ export default function HomeScreen() {
               textShadowRadius: 6,
             }}
           >
-            BIBIX ARENA
+            DEMON MATCH
           </Text>
         </View>
 
@@ -219,8 +237,13 @@ export default function HomeScreen() {
           <TileBtn label="Sin Fin" sub="Oleadas" to="Endless" emoji="♾️" bg="#845EC2" border="#5B36A8" />
           <TileBtn label="Colección" sub="Tus bibix" to="Collection" emoji="🧩" bg="#FFC75F" border="#E1A537" />
           <TileBtn label="Tienda" sub="Compra/Mejora" to="Store" emoji="🛒" bg="#F9F871" border="#D9D050" />
+           <TileBtn label="Recompensas" sub="gratis" to="Ads" emoji="🎁" bg="#F472B6" border="#DB2777" />     
+              
+          <TileBtn label="Perfil" sub="Personaje" to="Profile" emoji="👽" bg="#4D7CFE" border="#274FD1" />
+          {/* 👇 NUEVO: botón que redirige a Ads */}
+
+          
           <TileBtn label="Eventos" sub="Pronto" to="Home" emoji="🎯" bg="#00D2A6" border="#00A07D" />
-          <TileBtn label="Perfil"    sub="Personaje"     to="Profile"   emoji="👽" bg="#4D7CFE" border="#274FD1" />
         </View>
 
         {/* (Opcional) botón de debug para re-abrir el prompt */}

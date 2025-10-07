@@ -60,5 +60,31 @@ export const OPPONENTS: AvatarDef[] = [
           renderW: 80,   // puedes ajustar por avatar si quieres
           renderH: 100,
         },
+    },
+    {
+        id: "Hina",
+        name: "Hina",
+        sprite: {
+          // EJEMPLO con atlas grande 1024x1536 (2 filas x 3 columnas)
+          source: require("../../assets/personajes/Hina.png"),
+          rows: 2,
+          cols: 2,
+          fps: 1.8,
+          renderW: 80,   // puedes ajustar por avatar si quieres
+          renderH: 100,
+        },
+    },
+    {
+        id: "Shuna",
+        name: "Shuna",
+        sprite: {
+          // EJEMPLO con atlas grande 1024x1536 (2 filas x 3 columnas)
+          source: require("../../assets/personajes/Shunav1.png"),
+          rows: 2,
+          cols: 3,
+          fps: 1,
+          renderW: 110,   // puedes ajustar por avatar si quieres
+          renderH: 130,
+        },
     }
 ];
